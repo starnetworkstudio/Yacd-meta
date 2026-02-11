@@ -65,8 +65,7 @@ jobs:
             starskim/yacd-meta
             ghcr.io/starnetworkstudio/yacd-meta
           tags: |
-            # set latest tag for default branch
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'master') }}
 
 
       # - name: Set up QEMU
