@@ -1,47 +1,36 @@
+name: Deploy
+
 on: [push]
-name: Deploy workflow
-concurrency:
-  group: build-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
-  install:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      # https://github.com/actions/deploy-pages
-      pages: write
-      id-token: write
-    strategy:
-      matrix:
-        node-version: [18.x]
-
     steps:
       - name: Checkout Dashboard code
-        uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v4
+        uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v2
         with:
           version: latest
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Setup Nodejs
         uses: actions/setup-node@v3
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: '20.x'
           cache: pnpm
       - name: Install package and build
         run: |
           pnpm install --no-frozen-lockfile
           pnpm build
       - name: Deploy
-        uses: crazy-max/ghaction-github-pages@v4
+        uses: crazy-max/ghaction-github-pages@v2
         with:
           target_branch: gh-pages
           build_dir: public
-          fqdn: yacd.starskim.app
+          fqdn: yacd.metacubex.one
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   docker:
-    needs: install
+    needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (startsWith(github.event.ref, 'refs/tags/') || startsWith(github.event.ref, 'refs/heads/v0.') || github.event.ref == 'refs/heads/master' || github.event.ref == 'refs/heads/test')
     steps:
