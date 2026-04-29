@@ -9,10 +9,6 @@
   border-radius: 12px;
   box-shadow: var(--shadow-card);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
-
-  &:hover {
-    border-color: var(--color-focus-blue);
-  }
 }
 
 .zapWrapper {
@@ -54,4 +50,52 @@
       flex-direction: row;
     }
   }
+}
+
+.nowRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 5px 0;
+  min-width: 0;
+}
+
+.nowName {
+  font-size: 0.8em;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
+}
+
+.nowLatency {
+  font-size: 0.75em;
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.availBar {
+  margin: 8px 0;
+  height: 15px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+}
+
+.availBarTrack {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-separator);
+  overflow: hidden;
+}
+
+.availBarFill {
+  height: 100%;
+  border-radius: 3px;
+  background: #67c23a;
+  transition: width 0.4s ease;
 }

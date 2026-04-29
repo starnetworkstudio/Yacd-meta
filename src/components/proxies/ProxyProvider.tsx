@@ -1,29 +1,23 @@
 import cx from 'clsx';
 import { formatDistance } from 'date-fns';
 import * as React from 'react';
-import { ChevronDown, RotateCw, Zap } from 'react-feather';
+import { ChevronDown, RotateCw, Zap } from '~/components/shared/FeatherIcons';
 
 import Button from '~/components/Button';
 import Collapsible from '~/components/Collapsible';
 import CollapsibleSectionHeader from '~/components/CollapsibleSectionHeader';
-import { useUpdateProviderItem } from '~/components/proxies/proxies.hooks';
 import s0 from '~/components/proxies/ProxyGroup.module.scss';
-import { connect, useStoreActions } from '~/components/StateProvider';
-import { framerMotionResouce } from '~/misc/motion';
-import {
-  getClashAPIConfig,
-  getCollapsibleIsOpen,
-  getHideUnavailableProxies,
-  getProxySortBy,
-} from '~/store/app';
-import { getDelay, healthcheckProviderByName } from '~/store/proxies';
-import { DelayMapping, SubscriptionInfo } from '~/store/types';
+import { useStoreActions } from '~/components/StateProvider';
+import { LazyMotion, domAnimation, m } from 'framer-motion';
+import { useFilteredAndSorted, useUpdateProviderItem } from '~/modules/proxies/hooks';
+import { healthcheckProviderByName } from '~/store/proxies';
+import { DelayMapping, DispatchFn, ProxiesMapping, SubscriptionInfo } from '~/store/types';
+import { ClashAPIConfig } from '~/types';
 
-import { useFilteredAndSorted } from './hooks';
 import { ProxyList, ProxyListSummaryView } from './ProxyList';
 import s from './ProxyProvider.module.scss';
 
-const { useState, useCallback } = React;
+const { memo, useState, useCallback } = React;
 
 type Props = {
   name: string;
@@ -35,12 +29,14 @@ type Props = {
   vehicleType: 'HTTP' | 'File' | 'Compatible';
   updatedAt?: string;
   subscriptionInfo?: SubscriptionInfo;
-  dispatch: (x: any) => Promise<any>;
+  proxyMapping: ProxiesMapping;
+  latencyTestUrl: string;
+  dispatch: DispatchFn;
   isOpen: boolean;
-  apiConfig: any;
+  apiConfig: ClashAPIConfig;
 };
 
-function ProxyProviderImpl({
+export const ProxyProvider = memo(function ProxyProvider({
   name,
   proxies: all,
   delay,
@@ -49,6 +45,8 @@ function ProxyProviderImpl({
   vehicleType,
   updatedAt,
   subscriptionInfo,
+  proxyMapping,
+  latencyTestUrl,
   isOpen,
   dispatch,
   apiConfig,
@@ -141,9 +139,15 @@ function ProxyProviderImpl({
         <br />
         <small>Updated {timeAgo} ago</small>
       </div>
-      {/* @ts-expect-error ts-migrate(2322) FIXME: Type '{ children: Element[]; isOpen: boolean; }' i... Remove this comment to see the full error message */}
       <Collapsible isOpen={isOpen}>
-        <ProxyList all={proxies} />
+        <ProxyList
+          all={proxies}
+          proxies={proxyMapping}
+          delay={delay}
+          latencyTestUrl={latencyTestUrl}
+          apiConfig={apiConfig}
+          dispatch={dispatch}
+        />
         <div className={s.actionFooter}>
           <Button text="Update" start={<Refresh />} onClick={updateProvider} />
           <Button
@@ -154,13 +158,19 @@ function ProxyProviderImpl({
           />
         </div>
       </Collapsible>
-      {/* @ts-expect-error ts-migrate(2322) FIXME: Type '{ children: Element; isOpen: boolean; }' is ... Remove this comment to see the full error message */}
       <Collapsible isOpen={!isOpen}>
-        <ProxyListSummaryView all={proxies} />
+        <ProxyListSummaryView
+          all={proxies}
+          proxies={proxyMapping}
+          delay={delay}
+          latencyTestUrl={latencyTestUrl}
+          apiConfig={apiConfig}
+          dispatch={dispatch}
+        />
       </Collapsible>
     </div>
   );
-}
+});
 
 const button = {
   rest: { scale: 1 },
@@ -180,39 +190,19 @@ function formatBytes(bytes, decimals = 2) {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 }
 function Refresh() {
-  const module = framerMotionResouce.read();
-  const motion = module.motion;
   return (
-    <motion.div
-      className={s.refresh}
-      variants={button}
-      initial="rest"
-      whileHover="hover"
-      whileTap="pressed"
-    >
-      <motion.div className="flexCenter" variants={arrow}>
-        <RotateCw size={16} />
-      </motion.div>
-    </motion.div>
+    <LazyMotion features={domAnimation}>
+      <m.div
+        className={s.refresh}
+        variants={button}
+        initial="rest"
+        whileHover="hover"
+        whileTap="pressed"
+      >
+        <m.div className="flexCenter" variants={arrow}>
+          <RotateCw size={16} />
+        </m.div>
+      </m.div>
+    </LazyMotion>
   );
 }
-
-const mapState = (s, { proxies, name }) => {
-  const hideUnavailableProxies = getHideUnavailableProxies(s);
-  const delay = getDelay(s);
-  const collapsibleIsOpen = getCollapsibleIsOpen(s);
-  const apiConfig = getClashAPIConfig(s);
-
-  const proxySortBy = getProxySortBy(s);
-
-  return {
-    apiConfig,
-    proxies,
-    delay,
-    hideUnavailableProxies,
-    proxySortBy,
-    isOpen: collapsibleIsOpen[`proxyProvider:${name}`],
-  };
-};
-
-export const ProxyProvider = connect(mapState)(ProxyProviderImpl);

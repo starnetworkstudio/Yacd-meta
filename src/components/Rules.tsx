@@ -1,51 +1,27 @@
 import cx from 'clsx';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { areEqual, VariableSizeList } from 'react-window';
+import { List as VirtualList, RowComponentProps } from 'react-window';
 
 import ContentHeader from '~/components/ContentHeader';
 import { RuleProviderItem } from '~/components/rules/RuleProviderItem';
-import { useRuleAndProvider } from '~/components/rules/rules.hooks';
 import { RulesPageFab } from '~/components/rules/RulesPageFab';
 import { TextFilter } from '~/components/shared/TextFitler';
+import { useRulesPage } from '~/modules/rules/hooks';
+import { formatQty, getItemSizeFactory, RulesListItemData } from '~/modules/rules/utils';
 import { ruleFilterText } from '~/store/rules';
-import { State } from '~/store/types';
 import { ClashAPIConfig } from '~/types';
 
 import useRemainingViewPortHeight from '../hooks/useRemainingViewPortHeight';
-import { getClashAPIConfig } from '../store/app';
+
 import Rule from './Rule';
 import s from './Rules.module.scss';
-import { connect } from './StateProvider';
 
-const { memo, useState, useCallback } = React;
-
-type ItemData = {
-  rules: any[];
-  provider: any;
-  apiConfig: ClashAPIConfig;
+type RulesRowProps = {
+  data: RulesListItemData;
 };
 
-function itemKey(index: number, { rules, provider }: ItemData) {
-  if (!rules) {
-    return provider.names[index];
-  }
-  return rules[index].id;
-}
-
-function getItemSizeFactory({ isRulesTab }) {
-  return function getItemSize() {
-    if (!isRulesTab) {
-      // provider
-      return 100;
-    }
-    // rule
-    return 70;
-  };
-}
-
-// @ts-expect-error ts-migrate(2339) FIXME: Property 'index' does not exist on type '{ childre... Remove this comment to see the full error message
-const Row = memo(({ index, style, data }) => {
+function Row({ index, style, data }: RowComponentProps<RulesRowProps>) {
   const { rules, provider, apiConfig } = data;
 
   if (!rules) {
@@ -64,35 +40,16 @@ const Row = memo(({ index, style, data }) => {
       <Rule {...r} />
     </div>
   );
-}, areEqual);
-
-const mapState = (s: State) => ({
-  apiConfig: getClashAPIConfig(s),
-});
-
-export default connect(mapState)(Rules);
+}
 
 type RulesProps = {
   apiConfig: ClashAPIConfig;
 };
 
-function Rules({ apiConfig }: RulesProps) {
+export default function Rules({ apiConfig }: RulesProps) {
   const [refRulesContainer, containerHeight] = useRemainingViewPortHeight();
-  const { rules, provider } = useRuleAndProvider(apiConfig);
-  const [activeTab, setActiveTab] = useState('rules');
-
-  const formatQty = (qty: number) => (qty < 100 ? '' + qty : '99+');
-
-  const handleTabKeyDown = useCallback(
-    (tab: string) => (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        setActiveTab(tab);
-      }
-    },
-    []
-  );
-
-  const isRulesTab = activeTab === 'rules';
+  const { rules, provider, activeTab, setActiveTab, isRulesTab, handleTabKeyDown } =
+    useRulesPage(apiConfig);
   const getItemSize = getItemSizeFactory({ isRulesTab });
 
   const { t } = useTranslation();
@@ -130,16 +87,15 @@ function Rules({ apiConfig }: RulesProps) {
         </div>
       </ContentHeader>
       <div ref={refRulesContainer} className={s.listWrapper}>
-        <VariableSizeList
-          height={containerHeight}
-          width="100%"
-          itemCount={isRulesTab ? rules.length : provider.names.length}
-          itemSize={getItemSize}
-          itemData={{ rules: isRulesTab ? rules : null, provider, apiConfig }}
-          itemKey={itemKey}
-        >
-          {Row}
-        </VariableSizeList>
+        <VirtualList
+          style={{ height: containerHeight, width: '100%' }}
+          rowCount={isRulesTab ? rules.length : provider.names.length}
+          rowHeight={getItemSize}
+          rowComponent={Row}
+          rowProps={{
+            data: { rules: isRulesTab ? rules : null, provider, apiConfig } as RulesListItemData,
+          }}
+        />
       </div>
       {provider && provider.names && provider.names.length > 0 ? (
         <RulesPageFab apiConfig={apiConfig} />

@@ -3,11 +3,13 @@ import { formatDistance } from 'date-fns';
 import { enUS, zhCN, zhTW } from 'date-fns/locale';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import Modal from 'react-modal';
+
+import Modal from './Modal';
 
 import { FormattedConn } from '~/store/connections';
 
 import prettyBytes from '../misc/pretty-bytes';
+
 import modalStyle from './Modal.module.scss';
 import s from './ModalConnectionDetails.module.scss';
 

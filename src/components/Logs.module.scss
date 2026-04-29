@@ -4,15 +4,31 @@
   gap: 10px;
   flex: 1;
   justify-content: flex-end;
-  max-width: 400px;
+  max-width: 360px;
 
   & > div {
     flex: 1;
+  }
+
+  @media (max-width: 768px) {
+    max-width: none;
+    justify-content: stretch;
   }
 }
 
 .searchWrapper {
   flex: 1;
+  max-width: 300px;
+
+  @media (max-width: 768px) {
+    max-width: none;
+  }
+}
+
+.levelSelect {
+  flex-shrink: 0;
+  width: auto;
+  min-width: 90px;
 }
 
 .clearBtn {
@@ -25,7 +41,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.2s, color 0.2s;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
 
   &:hover {
     background-color: var(--bg-near-transparent);
@@ -109,10 +127,12 @@
   border-radius: 8px;
   color: var(--color-text);
   overflow-y: auto;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06);
 
   @media (max-width: 768px) {
-    margin: 15px 25px;
+    margin: 10px 15px;
   }
 
   &::-webkit-scrollbar {

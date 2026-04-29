@@ -3,6 +3,7 @@ import { Line } from 'react-chartjs-2';
 
 import { chartJSResource, chartStyles, commonDataSetProps } from '../misc/chart';
 import prettyBytes from '../misc/pretty-bytes';
+
 import s from './Sparkline.module.scss';
 
 const { useMemo } = React;
@@ -62,9 +63,19 @@ const extraChartOptions: any = {
 export default function Sparkline({ data: dataArray, labels, type, styleIndex = 0 }) {
   chartJSResource.read();
 
+  const isMemory = type === 'inuse';
+
   const options = useMemo(() => {
     return {
       ...extraChartOptions,
+      scales: {
+        ...extraChartOptions.scales,
+        y: {
+          display: false,
+          // 内存值稳定，不从零开始，让 Y 轴自动适应数据范围以显示波动
+          beginAtZero: !isMemory,
+        },
+      },
       plugins: {
         ...extraChartOptions.plugins,
         tooltip: {
@@ -74,8 +85,9 @@ export default function Sparkline({ data: dataArray, labels, type, styleIndex = 
             title: () => '',
             label(context) {
               if (context.parsed.y !== null) {
-                const suffix = type === 'inuse' ? '' : '/s';
-                return prettyBytes(context.parsed.y) + suffix;
+                const suffix = isMemory ? '' : '/s';
+                const raw = isMemory ? context.parsed.y : Math.expm1(context.parsed.y);
+                return prettyBytes(raw) + suffix;
               }
               return '';
             },
@@ -83,7 +95,7 @@ export default function Sparkline({ data: dataArray, labels, type, styleIndex = 
         },
       },
     };
-  }, [type]);
+  }, [type, isMemory]);
 
   const data = useMemo(
     () => ({
@@ -91,12 +103,13 @@ export default function Sparkline({ data: dataArray, labels, type, styleIndex = 
         {
           ...commonDataSetProps,
           ...chartStyles[styleIndex][type],
-          data: dataArray.map((v, i) => ({ x: labels[i], y: v })),
+          // 内存用原始值（变化幅度小，不需要压缩）；流量用 log1p 压缩尖刺
+          data: dataArray.map((v, i) => ({ x: labels[i], y: isMemory ? v : Math.log1p(v) })),
           fill: true,
         },
       ],
     }),
-    [dataArray, labels, type, styleIndex]
+    [dataArray, labels, type, styleIndex, isMemory],
   );
 
   return (
