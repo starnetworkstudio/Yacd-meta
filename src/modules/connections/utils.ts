@@ -27,6 +27,8 @@ export type ConnectionColumn = {
   sortable?: boolean;
   /** 数值列按数字比较，其余按 localeCompare */
   numeric?: boolean;
+  /** 首次点该列时的方向，缺省为 asc */
+  defaultSortDir?: SortDir;
 };
 
 export const ALL_SOURCE_IP = 'ALL_SOURCE_IP';
@@ -51,6 +53,7 @@ export const CONNECTION_COLUMNS: ConnectionColumn[] = [
     align: 'right',
     kind: 'text',
     numeric: true,
+    defaultSortDir: 'desc',
   },
   {
     id: 'uploadSpeedCurr',
@@ -59,9 +62,26 @@ export const CONNECTION_COLUMNS: ConnectionColumn[] = [
     align: 'right',
     kind: 'text',
     numeric: true,
+    defaultSortDir: 'desc',
   },
-  { id: 'download', labelKey: 'c_dl', width: 74, align: 'right', kind: 'text', numeric: true },
-  { id: 'upload', labelKey: 'c_ul', width: 74, align: 'right', kind: 'text', numeric: true },
+  {
+    id: 'download',
+    labelKey: 'c_dl',
+    width: 74,
+    align: 'right',
+    kind: 'text',
+    numeric: true,
+    defaultSortDir: 'desc',
+  },
+  {
+    id: 'upload',
+    labelKey: 'c_ul',
+    width: 74,
+    align: 'right',
+    kind: 'text',
+    numeric: true,
+    defaultSortDir: 'desc',
+  },
   { id: 'process', labelKey: 'c_process', width: 110, kind: 'text' },
   { id: 'chainNode', labelKey: 'c_node', width: 110, kind: 'text' },
   {
@@ -100,6 +120,10 @@ export type SortDir = 'asc' | 'desc';
 export type SortState = { key: string; dir: SortDir };
 /** 默认按连接时长升序，也就是最新建立的连接排在最上面 */
 export const SORT_DEFAULT: SortState = { key: 'start', dir: 'asc' };
+
+export function getDefaultSortDir(key: string): SortDir {
+  return CONNECTION_COLUMN_MAP[key]?.defaultSortDir ?? 'asc';
+}
 
 export type ConnectionSettings = {
   /** 匹配规则 / 代理链的正则，命中的连接不显示 */

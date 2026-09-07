@@ -10,7 +10,13 @@ import {
   useConnectionStats,
   useSourceMapState,
 } from '~/modules/connections/hooks';
-import { getInitialSort, saveSort, sortConns, SortState } from '~/modules/connections/utils';
+import {
+  getDefaultSortDir,
+  getInitialSort,
+  saveSort,
+  sortConns,
+  SortState,
+} from '~/modules/connections/utils';
 import { ClashAPIConfig } from '~/types';
 
 import s from './Connections.module.scss';
@@ -59,11 +65,13 @@ export default function Connections({ apiConfig }: Props) {
   const stats = useConnectionStats(conns, total);
 
   const [sort, setSortState] = useState<SortState>(() => getInitialSort());
-  // 点同一列切换升降序，点别的列换列并回到升序
+  // 点同一列切换升降序，点别的列换列并回到该列的默认方向
   const setSort = useCallback((key: string) => {
     setSortState((prev) => {
       const next: SortState =
-        prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' };
+        prev.key === key
+          ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+          : { key, dir: getDefaultSortDir(key) };
       saveSort(next);
       return next;
     });
