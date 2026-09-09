@@ -1,208 +1,169 @@
-import cx from 'clsx';
 import { formatDistance } from 'date-fns';
 import * as React from 'react';
-import { ChevronDown, RotateCw, Zap } from '~/components/shared/FeatherIcons';
+import { useTranslation } from 'react-i18next';
 
-import Button from '~/components/Button';
-import Collapsible from '~/components/Collapsible';
-import CollapsibleSectionHeader from '~/components/CollapsibleSectionHeader';
-import s0 from '~/components/proxies/ProxyGroup.module.scss';
-import { useStoreActions } from '~/components/StateProvider';
-import { LazyMotion, domAnimation, m } from 'framer-motion';
-import { useFilteredAndSorted, useUpdateProviderItem } from '~/modules/proxies/hooks';
-import { healthcheckProviderByName } from '~/store/proxies';
-import { DelayMapping, DispatchFn, ProxiesMapping, SubscriptionInfo } from '~/store/types';
+import Collapsible from '~/components/shared/Collapsible';
+import { RotateIcon } from '~/components/shared/RotateIcon';
+import {
+  useFilterAwareCollapse,
+  useFilteredAndSorted,
+  useFilterSegments,
+  useHealthcheckProvider,
+  useTestProxyLatency,
+  useUpdateProviderItem,
+} from '~/modules/proxies/hooks';
+import { matchesFilter, ProxiesAppConfig } from '~/modules/proxies/utils';
+import { useStoreActions } from '~/store/StateProvider';
+import { DelayMapping, ProxiesMapping, SubscriptionInfo } from '~/store/types';
 import { ClashAPIConfig } from '~/types';
 
+import { ProxyCard, ProxyCardAction, ProxyCardHeader, ProxyCardStatusRow } from './ProxyCard';
 import { ProxyList, ProxyListSummaryView } from './ProxyList';
 import s from './ProxyProvider.module.scss';
 
-const { memo, useState, useCallback } = React;
+const { memo, useCallback } = React;
 
 type Props = {
   name: string;
   proxies: Array<string>;
   delay: DelayMapping;
-  hideUnavailableProxies: boolean;
-  proxySortBy: string;
   type: 'Proxy' | 'Rule';
   vehicleType: 'HTTP' | 'File' | 'Compatible';
   updatedAt?: string;
   subscriptionInfo?: SubscriptionInfo;
   proxyMapping: ProxiesMapping;
-  latencyTestUrl: string;
-  dispatch: DispatchFn;
+  httpsLatencyTest: boolean;
   isOpen: boolean;
   apiConfig: ClashAPIConfig;
+  appConfig: ProxiesAppConfig;
 };
 
 export const ProxyProvider = memo(function ProxyProvider({
   name,
   proxies: all,
   delay,
-  hideUnavailableProxies,
-  proxySortBy,
   vehicleType,
   updatedAt,
   subscriptionInfo,
   proxyMapping,
-  latencyTestUrl,
+  httpsLatencyTest,
   isOpen,
-  dispatch,
   apiConfig,
+  appConfig,
 }: Props) {
-  const proxies = useFilteredAndSorted(all, delay, hideUnavailableProxies, proxySortBy);
-  const [isHealthcheckLoading, setIsHealthcheckLoading] = useState(false);
+  const { t } = useTranslation();
+  // 提供商名本身命中搜索时，旗下节点原样展示，不再逐个过滤
+  const filterSegments = useFilterSegments();
+  const nameMatched = matchesFilter(name, filterSegments);
+  const proxies = useFilteredAndSorted(
+    all,
+    delay,
+    appConfig.hideUnavailableProxies,
+    appConfig.proxySortBy,
+    undefined,
+    nameMatched,
+  );
 
-  const updateProvider = useUpdateProviderItem({ dispatch, apiConfig, name });
+  const [updateProviderItem, isUpdating] = useUpdateProviderItem(apiConfig);
+  const updateProvider = useCallback(() => updateProviderItem(name), [updateProviderItem, name]);
 
-  const healthcheckProvider = useCallback(async () => {
-    setIsHealthcheckLoading(true);
-    await dispatch(healthcheckProviderByName(apiConfig, name));
-    setIsHealthcheckLoading(false);
-  }, [apiConfig, dispatch, name, setIsHealthcheckLoading]);
+  const [healthcheck, isHealthcheckLoading] = useHealthcheckProvider(
+    apiConfig,
+    appConfig.providerHealthcheckTimeout,
+  );
+  const healthcheckProvider = useCallback(() => healthcheck(name), [healthcheck, name]);
 
   const {
     app: { updateCollapsibleIsOpen },
   } = useStoreActions();
 
-  const toggle = useCallback(() => {
-    updateCollapsibleIsOpen('proxyProvider', name, !isOpen);
-  }, [isOpen, updateCollapsibleIsOpen, name]);
+  const onToggle = useCallback(
+    (next: boolean) => updateCollapsibleIsOpen('proxyProvider', name, next),
+    [updateCollapsibleIsOpen, name],
+  );
+  const [effectiveIsOpen, toggle] = useFilterAwareCollapse({ isOpen, nameMatched, onToggle });
 
-  const timeAgo = formatDistance(new Date(updatedAt), new Date());
-  const total = subscriptionInfo ? formatBytes(subscriptionInfo.Total) : 0;
+  const onTestLatency = useTestProxyLatency(apiConfig, appConfig);
+
+  const listProps = {
+    all: proxies,
+    proxies: proxyMapping,
+    delay,
+    httpsLatencyTest,
+    onTestLatency,
+  };
+
+  const timeAgo = updatedAt ? formatDistance(new Date(updatedAt), new Date()) : null;
   const used = subscriptionInfo
     ? formatBytes(subscriptionInfo.Download + subscriptionInfo.Upload)
-    : 0;
+    : null;
+  const total = subscriptionInfo ? formatBytes(subscriptionInfo.Total) : null;
   const percentage = subscriptionInfo
     ? (
         ((subscriptionInfo.Download + subscriptionInfo.Upload) / subscriptionInfo.Total) *
         100
-      ).toFixed(2)
-    : 0;
+      ).toFixed(1)
+    : null;
+
   const expireStr = () => {
-    if (subscriptionInfo.Expire === 0) {
-      return 'Null';
-    }
+    if (!subscriptionInfo || subscriptionInfo.Expire === 0) return null;
     const expire = new Date(subscriptionInfo.Expire * 1000);
-    const getYear = expire.getFullYear() + '-';
-    const getMonth =
-      (expire.getMonth() + 1 < 10 ? '0' + (expire.getMonth() + 1) : expire.getMonth() + 1) + '-';
-    const getDate = (expire.getDate() < 10 ? '0' + expire.getDate() : expire.getDate()) + ' ';
-    return getYear + getMonth + getDate;
+    const month = String(expire.getMonth() + 1).padStart(2, '0');
+    const date = String(expire.getDate()).padStart(2, '0');
+    return `${expire.getFullYear()}-${month}-${date}`;
   };
+  const expire = expireStr();
+
   return (
-    <div className={s.body}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
-          userSelect: 'none',
-        }}
-      >
-        <CollapsibleSectionHeader
-          name={name}
-          toggle={toggle}
-          type={vehicleType}
-          isOpen={isOpen}
-          qty={proxies.length}
-        />
-        <div style={{ display: 'flex' }}>
-          <Button
-            kind="minimal"
-            onClick={toggle}
-            className={s0.btn}
-            title="Toggle collapsible section"
+    <ProxyCard>
+      <ProxyCardHeader
+        name={name}
+        type={vehicleType}
+        isOpen={effectiveIsOpen}
+        toggle={toggle}
+        onTest={healthcheckProvider}
+        isTesting={isHealthcheckLoading}
+        badges={<span className={s.qtyBadge}>{t('node_qty', { n: proxies.length })}</span>}
+        extraActions={
+          <ProxyCardAction
+            onClick={updateProvider}
+            title={t('update_proxy_provider')}
+            isBusy={isUpdating}
           >
-            <span className={cx(s0.arrow, { [s0.isOpen]: isOpen })}>
-              <ChevronDown size={20} />
-            </span>
-          </Button>
-          <Button kind="minimal" start={<Refresh />} onClick={updateProvider} />
-          <Button
-            kind="minimal"
-            start={<Zap size={16} />}
-            onClick={healthcheckProvider}
-            isLoading={isHealthcheckLoading}
-          />
-        </div>
+            <RotateIcon isRotating={isUpdating} />
+          </ProxyCardAction>
+        }
+      />
+
+      <div className={s.meta}>
+        {subscriptionInfo ? (
+          <span>
+            {used} / {total} ({percentage}%)
+          </span>
+        ) : null}
+        {expire ? <span>{t('expire_at', { date: expire })}</span> : null}
+        {timeAgo ? <span>{t('updated_ago', { time: timeAgo })}</span> : null}
       </div>
-      <div className={s.updatedAt}>
-        {subscriptionInfo && (
-          <small>
-            {used} / {total} ( {percentage}% ) &nbsp;&nbsp; Expire: {expireStr()}{' '}
-          </small>
-        )}
-        <br />
-        <small>Updated {timeAgo} ago</small>
-      </div>
-      <Collapsible isOpen={isOpen}>
-        <ProxyList
-          all={proxies}
-          proxies={proxyMapping}
-          delay={delay}
-          latencyTestUrl={latencyTestUrl}
-          apiConfig={apiConfig}
-          dispatch={dispatch}
-        />
-        <div className={s.actionFooter}>
-          <Button text="Update" start={<Refresh />} onClick={updateProvider} />
-          <Button
-            text="Health Check"
-            start={<Zap size={16} />}
-            onClick={healthcheckProvider}
-            isLoading={isHealthcheckLoading}
-          />
-        </div>
+
+      <ProxyCardStatusRow
+        itemCount={proxies.length}
+        allItems={all}
+        delay={delay}
+        renderDots={() => <ProxyListSummaryView {...listProps} />}
+      />
+
+      <Collapsible isOpen={effectiveIsOpen}>
+        <ProxyList {...listProps} />
       </Collapsible>
-      <Collapsible isOpen={!isOpen}>
-        <ProxyListSummaryView
-          all={proxies}
-          proxies={proxyMapping}
-          delay={delay}
-          latencyTestUrl={latencyTestUrl}
-          apiConfig={apiConfig}
-          dispatch={dispatch}
-        />
-      </Collapsible>
-    </div>
+    </ProxyCard>
   );
 });
 
-const button = {
-  rest: { scale: 1 },
-  pressed: { scale: 0.95 },
-};
-const arrow = {
-  rest: { rotate: 0 },
-  hover: { rotate: 360, transition: { duration: 0.3 } },
-};
-
-function formatBytes(bytes, decimals = 2) {
-  if (!+bytes) return '0 Bytes';
+function formatBytes(bytes: number, decimals = 2) {
+  if (!+bytes) return '0 B';
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
-}
-function Refresh() {
-  return (
-    <LazyMotion features={domAnimation}>
-      <m.div
-        className={s.refresh}
-        variants={button}
-        initial="rest"
-        whileHover="hover"
-        whileTap="pressed"
-      >
-        <m.div className="flexCenter" variants={arrow}>
-          <RotateCw size={16} />
-        </m.div>
-      </m.div>
-    </LazyMotion>
-  );
 }

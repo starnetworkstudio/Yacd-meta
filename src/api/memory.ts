@@ -15,7 +15,7 @@ const memory = {
   oslimit: Array(Size).fill(null),
 
   size: Size,
-  subscribers: [],
+  subscribers: [] as Array<(o: { inuse: number; oslimit: number }) => void>,
   appendData(o: { inuse: number; oslimit: number }) {
     this.inuse.shift();
     this.oslimit.shift();
@@ -45,7 +45,7 @@ function parseAndAppend(x: string) {
   memory.appendData(JSON.parse(x));
 }
 
-function pump(reader: ReadableStreamDefaultReader) {
+function pump(reader: ReadableStreamDefaultReader): Promise<void> {
   return reader.read().then(({ done, value }) => {
     const str = textDecoder.decode(value, { stream: !done });
     decoded += str;
@@ -62,7 +62,6 @@ function pump(reader: ReadableStreamDefaultReader) {
       parseAndAppend(lastSplit);
       decoded = '';
 
-      // eslint-disable-next-line no-console
       console.log('GET /memory streaming done');
       fetched = false;
       return;
@@ -102,7 +101,7 @@ function fetchDataWithFetch(apiConfig: ClashAPIConfig) {
   const { url, init } = getURLAndInit(apiConfig);
   fetch(url + endpoint, init).then(
     (response) => {
-      if (response.ok) {
+      if (response.ok && response.body) {
         const reader = response.body.getReader();
         pump(reader);
       } else {
@@ -110,10 +109,9 @@ function fetchDataWithFetch(apiConfig: ClashAPIConfig) {
       }
     },
     (err) => {
-      // eslint-disable-next-line no-console
       console.log('fetch /memory error', err);
       fetched = false;
-    }
+    },
   );
   return memory;
 }

@@ -1,6 +1,6 @@
-import Home from '~/components/Home';
-import { connect } from '~/components/StateProvider';
+import Home from '~/components/home/Home';
 import { getClashAPIConfig, getSelectedChartStyleIndex } from '~/store/app';
+import { connect } from '~/store/StateProvider';
 import { State } from '~/store/types';
 
 const mapState = (state: State) => ({

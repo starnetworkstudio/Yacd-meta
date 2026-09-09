@@ -1,89 +1,86 @@
-import { Tooltip } from '@reach/tooltip';
 import cx from 'clsx';
 import * as React from 'react';
-import { useTranslation } from 'react-i18next';
 
-import Button from '~/components/Button';
-import ContentHeader from '~/components/ContentHeader';
-import { ClosePrevConns } from '~/components/proxies/ClosePrevConns';
+import { ProxiesHeader } from '~/components/proxies/ProxiesHeader';
 import { ProxyGroup } from '~/components/proxies/ProxyGroup';
-import { ProxyPageFab } from '~/components/proxies/ProxyPageFab';
 import { ProxyProvider } from '~/components/proxies/ProxyProvider';
-import Settings from '~/components/proxies/Settings';
-import BaseModal from '~/components/shared/BaseModal';
-import { TextFilter } from '~/components/shared/TextFitler';
-import { useStoreActions } from '~/components/StateProvider';
-import Equalizer from '~/components/svg/Equalizer';
-import { useProxiesPage } from '~/modules/proxies/hooks';
-import { formatQty } from '~/modules/proxies/utils';
-import { proxyFilterText } from '~/store/proxies';
-import { DelayMapping, DispatchFn, FormattedProxyProvider, ProxiesMapping } from '~/store/types';
+import {
+  useCollapseAll,
+  useDelayMapping,
+  useProxiesPage,
+  useProxiesQuery,
+  useTestAllLatency,
+  useUpdateProviderItems,
+  useVisibleGroupNames,
+  useVisibleProviders,
+} from '~/modules/proxies/hooks';
+import { ProxiesAppConfig } from '~/modules/proxies/utils';
 import { ClashAPIConfig } from '~/types';
 
 import s0 from './Proxies.module.scss';
 
-type AppConfig = {
-  proxySortBy: string;
-  hideUnavailableProxies: boolean;
-  autoCloseOldConns: boolean;
-  proxiesLayout: string;
-};
-
 type Props = {
-  dispatch: DispatchFn;
-  groupNames: string[];
-  proxies: ProxiesMapping;
-  delay: DelayMapping;
-  latencyTestUrl: string;
   collapsibleIsOpen: Record<string, boolean>;
-  proxyProviders: FormattedProxyProvider[];
   apiConfig: ClashAPIConfig;
-  showModalClosePrevConns: boolean;
-  appConfig: AppConfig;
+  appConfig: ProxiesAppConfig;
 };
 
-export default function Proxies({
-  dispatch,
-  groupNames,
-  proxies,
-  delay,
-  latencyTestUrl,
-  collapsibleIsOpen,
-  proxyProviders,
-  apiConfig,
-  showModalClosePrevConns,
-  appConfig,
-}: Props) {
+export default function Proxies({ collapsibleIsOpen, apiConfig, appConfig }: Props) {
+  // the panel's configured test URL only feeds the latency-color threshold here;
+  // the actual URL used per request is resolved in the mutation hooks
+  const httpsLatencyTest = appConfig.latencyTestUrl.startsWith('https://');
+
+  const { data, dataUpdatedAt } = useProxiesQuery(apiConfig);
+  const { proxies, groupNames, proxyProviders } = data;
+  const delay = useDelayMapping(proxies, dataUpdatedAt);
+
+  // 搜索同时作用于代理组/提供商本身和它们旗下的节点
+  const visibleGroupNames = useVisibleGroupNames(groupNames, proxies);
+  const visibleProviders = useVisibleProviders(proxyProviders);
+
   const {
-    isSettingsModalOpen,
-    openSettingsModal,
-    closeSettingsModal,
+    isSettingsOpen,
+    toggleSettings,
+    closeSettings,
     activeTab,
     setActiveTab,
-    handleTabKeyDown,
     proxyGroups,
     providers,
   } = useProxiesPage({
-    dispatch,
-    apiConfig,
-    groupNames,
-    proxyProviders,
+    groupNames: visibleGroupNames,
+    proxyProviders: visibleProviders,
     proxiesLayout: appConfig.proxiesLayout,
   });
 
-  const {
-    proxies: { closeModalClosePrevConns, closePrevConnsAndTheModal },
-  } = useStoreActions();
+  const providerNames = React.useMemo(
+    () => proxyProviders.map((item) => item.name),
+    [proxyProviders],
+  );
+  const visibleProviderNames = React.useMemo(
+    () => visibleProviders.map((item) => item.name),
+    [visibleProviders],
+  );
 
-  const { t } = useTranslation();
+  // 折叠是视图操作，只作用于搜索后可见的卡片
+  const [toggleCollapseAll, allCollapsed] = useCollapseAll({
+    prefix: activeTab === 'proxies' ? 'proxyGroup' : 'proxyProvider',
+    names: activeTab === 'proxies' ? visibleGroupNames : visibleProviderNames,
+    collapsibleIsOpen,
+  });
+
+  const [testAll, isTestingLatency] = useTestAllLatency(apiConfig, appConfig);
+  const [updateAllProviders, isUpdatingProviders] = useUpdateProviderItems(
+    apiConfig,
+    providerNames,
+  );
+
+  const containerClassName = cx(s0.groupsContainer, {
+    [s0.doubleColumn]: appConfig.proxiesLayout === 'double',
+  });
 
   const content =
     activeTab === 'proxies' ? (
-      <div
-        className={cx(s0.groupsContainer, {
-          [s0.doubleColumn]: appConfig.proxiesLayout === 'double',
-        })}
-      >
+      <div className={containerClassName}>
         {proxyGroups.map((column, i) => (
           <div key={i} className={s0.column}>
             {column.map(({ name, i: originalIndex }) => (
@@ -92,12 +89,10 @@ export default function Proxies({
                   name={name}
                   delay={delay}
                   apiConfig={apiConfig}
-                  dispatch={dispatch}
+                  appConfig={appConfig}
                   proxies={proxies}
-                  hideUnavailableProxies={appConfig.hideUnavailableProxies}
-                  proxySortBy={appConfig.proxySortBy}
                   isOpen={Boolean(collapsibleIsOpen[`proxyGroup:${name}`])}
-                  latencyTestUrl={latencyTestUrl}
+                  httpsLatencyTest={httpsLatencyTest}
                 />
               </div>
             ))}
@@ -105,11 +100,7 @@ export default function Proxies({
         ))}
       </div>
     ) : (
-      <div
-        className={cx(s0.groupsContainer, {
-          [s0.doubleColumn]: appConfig.proxiesLayout === 'double',
-        })}
-      >
+      <div className={containerClassName}>
         {providers.map((column, i) => (
           <div key={i} className={s0.column}>
             {column.map(({ item, i: originalIndex }) => (
@@ -122,13 +113,11 @@ export default function Proxies({
                   updatedAt={item.updatedAt}
                   subscriptionInfo={item.subscriptionInfo}
                   proxyMapping={proxies}
-                  latencyTestUrl={latencyTestUrl}
+                  httpsLatencyTest={httpsLatencyTest}
                   delay={delay}
-                  hideUnavailableProxies={appConfig.hideUnavailableProxies}
-                  proxySortBy={appConfig.proxySortBy}
                   isOpen={Boolean(collapsibleIsOpen[`proxyProvider:${item.name}`])}
-                  dispatch={dispatch}
                   apiConfig={apiConfig}
+                  appConfig={appConfig}
                 />
               </div>
             ))}
@@ -138,58 +127,25 @@ export default function Proxies({
     );
 
   return (
-    <>
-      <BaseModal isOpen={isSettingsModalOpen} onRequestClose={closeSettingsModal}>
-        <Settings appConfig={appConfig} />
-      </BaseModal>
-      <div className={s0.topBar}>
-        <ContentHeader>
-          <div className={s0.tabsContainer}>
-            <div
-              className={cx(s0.tab, { [s0.active]: activeTab === 'proxies' })}
-              onClick={() => setActiveTab('proxies')}
-              onKeyDown={handleTabKeyDown('proxies')}
-              role="button"
-              tabIndex={0}
-            >
-              {t('Proxies')}
-              <span className={s0.tabCount}>{formatQty(groupNames.length)}</span>
-            </div>
-            {proxyProviders.length > 0 && (
-              <div
-                className={cx(s0.tab, { [s0.active]: activeTab === 'providers' })}
-                onClick={() => setActiveTab('providers')}
-                onKeyDown={handleTabKeyDown('providers')}
-                role="button"
-                tabIndex={0}
-              >
-                {t('proxy_provider')}
-                <span className={s0.tabCount}>{formatQty(proxyProviders.length)}</span>
-              </div>
-            )}
-          </div>
-          <div style={{ flex: 1 }} />
-          <div className={s0.topBarRight}>
-            <div className={s0.textFilterContainer}>
-              <TextFilter textAtom={proxyFilterText} placeholder={t('Search')} />
-            </div>
-            <Tooltip label={t('settings')}>
-              <Button kind="minimal" onClick={openSettingsModal}>
-                <Equalizer size={16} />
-              </Button>
-            </Tooltip>
-          </div>
-        </ContentHeader>
-      </div>
+    <div className={s0.page}>
+      <ProxiesHeader
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        groupCount={visibleGroupNames.length}
+        providerCount={proxyProviders.length}
+        visibleProviderCount={visibleProviders.length}
+        appConfig={appConfig}
+        isSettingsOpen={isSettingsOpen}
+        toggleSettings={toggleSettings}
+        closeSettings={closeSettings}
+        onToggleCollapseAll={toggleCollapseAll}
+        allCollapsed={allCollapsed}
+        onTestAll={testAll}
+        isTestingLatency={isTestingLatency}
+        onUpdateAllProviders={updateAllProviders}
+        isUpdatingProviders={isUpdatingProviders}
+      />
       {content}
-      <div style={{ height: 60 }} />
-      <ProxyPageFab dispatch={dispatch} apiConfig={apiConfig} proxyProviders={proxyProviders} />
-      <BaseModal isOpen={showModalClosePrevConns} onRequestClose={closeModalClosePrevConns}>
-        <ClosePrevConns
-          onClickPrimaryButton={() => closePrevConnsAndTheModal(apiConfig)}
-          onClickSecondaryButton={closeModalClosePrevConns}
-        />
-      </BaseModal>
-    </>
+    </div>
   );
 }

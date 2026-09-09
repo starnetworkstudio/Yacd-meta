@@ -1,11 +1,12 @@
+import * as RadixTooltip from '@radix-ui/react-tooltip';
+import { QueryClientProvider } from '@tanstack/react-query';
 import * as React from 'react';
-import { QueryClientProvider } from 'react-query';
-import { RecoilRoot } from 'recoil';
 
-import ErrorBoundary from '~/components/ErrorBoundary';
-import StateProvider from '~/components/StateProvider';
+import ErrorBoundary from '~/app/ErrorBoundary';
+import { Toaster } from '~/components/shared/Toast';
 import { queryClient } from '~/misc/query';
 import { actions, initialState } from '~/store';
+import StateProvider from '~/store/StateProvider';
 
 type Props = {
   children: React.ReactNode;
@@ -14,11 +15,14 @@ type Props = {
 export function AppProviders({ children }: Props) {
   return (
     <ErrorBoundary>
-      <RecoilRoot>
-        <StateProvider initialState={initialState} actions={actions}>
-          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-        </StateProvider>
-      </RecoilRoot>
+      <StateProvider initialState={initialState} actions={actions}>
+        <QueryClientProvider client={queryClient}>
+          <RadixTooltip.Provider delayDuration={0}>
+            {children}
+            <Toaster />
+          </RadixTooltip.Provider>
+        </QueryClientProvider>
+      </StateProvider>
     </ErrorBoundary>
   );
 }

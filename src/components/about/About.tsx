@@ -1,7 +1,6 @@
 import * as React from 'react';
-import { GitHub } from '~/components/shared/FeatherIcons';
 
-import ContentHeader from '~/components/ContentHeader';
+import { GitHub } from '~/components/shared/FeatherIcons';
 import { useAboutVersionQuery } from '~/modules/about/hooks';
 import { getCoreVersionMeta } from '~/modules/about/utils';
 import { ClashAPIConfig } from '~/types';
@@ -34,7 +33,6 @@ export function About({ apiConfig }: Props) {
 
   return (
     <>
-      <ContentHeader>About</ContentHeader>
       {coreVersionMeta && version?.version ? (
         <Version
           name={coreVersionMeta.name}
