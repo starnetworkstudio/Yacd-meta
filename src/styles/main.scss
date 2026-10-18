@@ -117,8 +117,6 @@ body {
   --color-toggle-selected: #1f2937;
   --color-icon: #9ca3af;
   --color-separator: #374151;
-  --color-btn-bg: #374151;
-  --color-btn-fg: #e5e7eb;
   --color-bg-proxy: #1f2937;
   --color-row-odd: #1f2937;
   --bg-log-info-tag: #4b5563;
@@ -130,9 +128,36 @@ body {
   --bc-tooltip: #374151;
   --select-border-color: #374151;
   --select-bg-hover: url(data:image/svg+xml,%0A%20%20%20%20%3Csvg%20width%3D%228%22%20height%3D%2224%22%20viewBox%3D%220%200%208%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M4%207L7%2011H1L4%207Z%22%20fill%3D%22%23ffffff%22%20%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M4%2017L1%2013L7%2013L4%2017Z%22%20fill%3D%22%23ffffff%22%20%2F%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20);
-  --bg-log-info-card: #1f2937;
   --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --border-radius: 12px;
+
+  // 卡片 / 徽章 / 弹层
+  --color-card: #1f2937;
+  --color-card-border: #374151;
+  --color-badge-bg: rgba(255, 255, 255, 0.08);
+  --color-badge-fg: #9ca3af;
+  --color-accent-soft-bg: rgba(59, 130, 246, 0.2);
+  --color-accent-soft-fg: #93c5fd;
+  --color-node-active-bg: rgba(59, 130, 246, 0.14);
+  --color-hover-soft: rgba(255, 255, 255, 0.06);
+  --color-track: #111827;
+  --shadow-popover: 0 12px 32px -8px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-segment: 0 1px 2px rgba(0, 0, 0, 0.4);
+
+  // 侧栏 / 顶栏等「外壳」表面：半透明叠在页面底色上，比卡片暗一档，
+  // 这样卡片始终是抬起来的那一层
+  --color-chrome: rgba(31, 41, 55, 0.72);
+  --color-chrome-border: rgba(255, 255, 255, 0.08);
+
+  // 语义状态色
+  --color-success: #4ade80;
+  --color-success-soft-bg: rgba(74, 222, 128, 0.16);
+  --color-danger: #f87171;
+  --color-danger-soft-bg: rgba(248, 113, 113, 0.16);
+  --color-warn: #fbbf24;
+  --color-warn-soft-bg: rgba(251, 191, 36, 0.16);
+  --color-udp-bg: rgba(192, 132, 252, 0.18);
+  --color-udp-fg: #d8b4fe;
 }
 
 @mixin light {
@@ -159,8 +184,6 @@ body {
   --color-toggle-selected: #ffffff;
   --color-icon: #64748b;
   --color-separator: #e2e8f0;
-  --color-btn-bg: #f8fafc;
-  --color-btn-fg: #334155;
   --color-bg-proxy: #f8fafc;
   --color-row-odd: #f1f5f9;
   --bg-log-info-tag: #e2e8f0;
@@ -171,9 +194,38 @@ body {
   --bc-tooltip: #e2e8f0;
   --select-border-color: #cbd5e1;
   --select-bg-hover: url(data:image/svg+xml,%0A%20%20%20%20%3Csvg%20width%3D%228%22%20height%3D%2224%22%20viewBox%3D%220%200%208%2024%22%20fill%3D%22none%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M4%207L7%2011H1L4%207Z%22%20fill%3D%22%23222222%22%20%2F%3E%0A%20%20%20%20%20%20%3Cpath%20d%3D%22M4%2017L1%2013L7%2013L4%2017Z%22%20fill%3D%22%23222222%22%20%2F%3E%0A%20%20%20%20%3C%2Fsvg%3E%0A%20%20);
-  --bg-log-info-card: #f1f5f9;
   --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   --border-radius: 12px;
+
+  // 卡片 / 徽章 / 弹层
+  // 与概览页 --color-bg-card 同档的柔和灰白，避免代理组 / 连接卡片在
+  // 浅灰页面底色上显得刺眼的纯白；边框同步压深一档保持轮廓清晰
+  --color-card: #f8fafc;
+  --color-card-border: #e2e8f0;
+  --color-badge-bg: #f1f5f9;
+  --color-badge-fg: #64748b;
+  --color-accent-soft-bg: #e0edff;
+  --color-accent-soft-fg: #2563eb;
+  --color-node-active-bg: #eff6ff;
+  --color-hover-soft: rgba(15, 23, 42, 0.05);
+  --color-track: #eef2f6;
+  --shadow-popover: 0 12px 32px -8px rgba(15, 23, 42, 0.22), 0 2px 8px rgba(15, 23, 42, 0.08);
+  --shadow-segment: 0 1px 2px rgba(15, 23, 42, 0.12);
+
+  // 侧栏 / 顶栏等「外壳」表面：半透明白叠在页面底色上，算出来约 #f9fafc，
+  // 比纯白的卡片灰一档，卡片才浮得起来
+  --color-chrome: rgba(255, 255, 255, 0.62);
+  --color-chrome-border: rgba(0, 0, 0, 0.08);
+
+  // 语义状态色
+  --color-success: #16a34a;
+  --color-success-soft-bg: rgba(22, 163, 74, 0.14);
+  --color-danger: #ef4444;
+  --color-danger-soft-bg: rgba(239, 68, 68, 0.12);
+  --color-warn: #b45309;
+  --color-warn-soft-bg: rgba(245, 158, 11, 0.16);
+  --color-udp-bg: rgba(168, 85, 247, 0.12);
+  --color-udp-fg: #7e22ce;
 }
 
 :root[data-theme='auto'] {
@@ -222,15 +274,10 @@ body {
   padding: 0;
 }
 
-/**** @reach/tooltip/styles.css ****/
-:root {
-  --reach-tooltip: 1;
-}
-
-[data-reach-tooltip] {
+/**** Radix Tooltip content ****/
+.tooltip-content {
   z-index: 1;
   pointer-events: none;
-  position: absolute;
   padding: 0.25em 0.5em;
   box-shadow: 2px 2px 10px hsla(0, 0%, 0%, 0.1);
   white-space: nowrap;

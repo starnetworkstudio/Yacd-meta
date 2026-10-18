@@ -1,12 +1,8 @@
-import { TooltipPopup, useTooltip } from '@reach/tooltip';
 import cx from 'clsx';
 import * as React from 'react';
 
 import { keyCodes } from '~/misc/keycode';
-import { DispatchFn, ProxyItem } from '~/store/types';
-import { ClashAPIConfig } from '~/types';
-
-import { healthcheckProxy } from '../../store/proxies';
+import { ProxyItem } from '~/store/types';
 
 import s0 from './Proxy.module.scss';
 import { ProxyLatency } from './ProxyLatency';
@@ -20,7 +16,6 @@ const colorMap = {
   normal: '#d4b75c',
   // orange
   bad: '#e67f3c',
-  // bad: '#F56C6C',
   na: '#909399',
 };
 
@@ -30,47 +25,37 @@ function getLabelColor(
   }: {
     number?: number;
   } = {},
-  httpsTest: boolean
+  httpsTest: boolean,
 ) {
   const delayMap = {
     good: httpsTest ? 800 : 200,
     normal: httpsTest ? 1500 : 500,
   };
-  if (number === 0) {
+  // 没测过（undefined）和测出 0 都算不可用；原本靠 undefined 参与比较恒为 false 落到最后一行
+  if (typeof number !== 'number' || number === 0) {
     return colorMap.na;
-  } else if (number < delayMap.good) {
-    return colorMap.good;
-  } else if (number < delayMap.normal) {
-    return colorMap.normal;
-  } else if (typeof number === 'number') {
-    return colorMap.bad;
   }
-  return colorMap.na;
+  if (number < delayMap.good) {
+    return colorMap.good;
+  }
+  if (number < delayMap.normal) {
+    return colorMap.normal;
+  }
+  return colorMap.bad;
 }
 
-function getProxyDotBackgroundColor(
-  latency: {
-    number?: number;
-  },
-  // proxyType: string,
-  httpsTest: boolean
-) {
-  // if (NonProxyTypes.indexOf(proxyType) > -1) {
-  //   return 'linear-gradient(135deg, white 15%, #999 15% 30%, white 30% 45%, #999 45% 60%, white 60% 75%, #999 75% 90%, white 90% 100%)';
-  // }
-  return getLabelColor(latency, httpsTest);
-}
-
-type ProxyProps = {
+type ProxyBaseProps = {
   name: string;
   now?: boolean;
   proxy: ProxyItem;
-  latency: { number?: number; error?: string; testing?: boolean };
+  latency?: { number?: number; failed?: boolean; testing?: boolean };
   httpsLatencyTest: boolean;
   isSelectable?: boolean;
   onClick?: (proxyName: string) => unknown;
-  apiConfig: ClashAPIConfig;
-  dispatch: DispatchFn;
+};
+
+type ProxyProps = ProxyBaseProps & {
+  onTestLatency: (name: string, providerName?: string) => void;
 };
 
 export const ProxySmall = memo(function ProxySmall({
@@ -81,12 +66,12 @@ export const ProxySmall = memo(function ProxySmall({
   httpsLatencyTest,
   isSelectable,
   onClick,
-}: ProxyProps) {
-  const delay = proxy.history[proxy.history.length - 1]?.delay;
+}: ProxyBaseProps) {
+  const delay = latency?.failed ? undefined : proxy.history[proxy.history.length - 1]?.delay;
   const latencyNumber = latency?.number ?? delay;
   const color = useMemo(
-    () => getProxyDotBackgroundColor({ number: latencyNumber }, httpsLatencyTest),
-    [latencyNumber, httpsLatencyTest]
+    () => getLabelColor({ number: latencyNumber }, httpsLatencyTest),
+    [latencyNumber, httpsLatencyTest],
   );
 
   const title = useMemo(() => {
@@ -107,22 +92,28 @@ export const ProxySmall = memo(function ProxySmall({
         doSelect();
       }
     },
-    [doSelect]
+    [doSelect],
   );
 
+  // 当前选中的节点画成空心圆：用单个元素的 inset 阴影描边，
+  // 避免再叠一个绝对定位的内圆——两个盒子各自取整会让圆心看起来偏掉
+  const dotStyle = now
+    ? { background: 'var(--color-card)', boxShadow: `inset 0 0 0 3px ${color}` }
+    : { background: color };
+
   return (
+    // role 是条件表达式，oxlint 静态分析不出来
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions
     <div
       title={title}
       className={cx(s0.proxySmall, {
         [s0.selectable]: isSelectable,
       })}
-      style={{ background: color, scale: now ? '1.2' : '1' }}
+      style={dotStyle}
       onClick={doSelect}
       onKeyDown={handleKeyDown}
       role={isSelectable ? 'menuitem' : ''}
-    >
-      {now && <div className={s0.now} />}
-    </div>
+    />
   );
 });
 
@@ -131,25 +122,26 @@ function formatProxyType(t: string) {
   return t;
 }
 
-const positionProxyNameTooltip = (triggerRect: { left: number; top: number }) => {
-  return {
-    left: triggerRect.left + window.scrollX - 5,
-    top: triggerRect.top + window.scrollY - 38,
-  };
-};
+function formatUdpType(udp: boolean, xudp?: boolean) {
+  if (!udp) return '';
+  return xudp ? 'XUDP' : 'UDP';
+}
 
-function ProxyNameTooltip({ children, label, 'aria-label': ariaLabel }) {
-  const [trigger, tooltip] = useTooltip();
+function TfoIcon() {
   return (
-    <>
-      {React.cloneElement(children, trigger)}
-      <TooltipPopup
-        {...tooltip}
-        label={label}
-        aria-label={ariaLabel}
-        position={positionProxyNameTooltip}
+    <svg
+      viewBox="0 0 1024 1024"
+      version="1.1"
+      xmlns="http://www.w3.org/2000/svg"
+      width="10"
+      height="10"
+      aria-label="TFO"
+    >
+      <path
+        fill="currentColor"
+        d="M648.093513 719.209284l-1.492609-40.940127 31.046263-26.739021c202.73892-174.805813 284.022131-385.860697 255.70521-561.306199-176.938111-28.786027-389.698834 51.857494-563.907604 254.511123l-26.31256 30.619803-40.38573-0.938211c-60.557271-1.407317-111.903014 12.79379-162.822297 47.0385l189.561318 127.084977-37.95491 68.489421c-9.126237 16.461343-0.554398 53.307457 29.084549 82.818465 29.5963 29.511008 67.380626 38.381369 83.287571 29.852176l68.318836-36.760822 127.639376 191.267156c36.163779-52.11337 50.450177-103.629696 48.189941-165.039887zM994.336107 16.105249l10.490908 2.686696 2.64405 10.405615c47.46496 178.089552-1.023503 451.492838-274.170913 686.898568 4.051367 111.263324-35.396151 200.222809-127.255561 291.741051l-15.779008 15.693715-145.934494-218.731157c-51.217805 27.59194-128.790816 10.405616-183.93205-44.522388-55.226525-55.013296-72.41285-132.287785-43.498885-184.529093L0.002773 430.325513l15.736362-15.65107c89.300652-88.959484 178.64395-128.108481 289.011709-125.549722C539.730114 15.806727 815.56422-31.061189 994.336107 16.105249zM214.93844 805.098259c28.572797 28.572797 22.346486 79.49208-12.537914 114.376479C156.428175 965.489735 34.034254 986.002445 34.034254 986.002445s25.331704-127.084978 66.612998-168.323627c34.8844-34.8844 85.633099-41.281295 114.291188-12.580559zM661.01524 298.549479a63.968948 63.968948 0 1 0 0 127.937897 63.968948 63.968948 0 0 0 0-127.937897z"
       />
-    </>
+    </svg>
   );
 }
 
@@ -161,70 +153,53 @@ export const Proxy = memo(function Proxy({
   httpsLatencyTest,
   isSelectable,
   onClick,
-  apiConfig,
-  dispatch,
+  onTestLatency,
 }: ProxyProps) {
-  const delay = proxy.history[proxy.history.length - 1]?.delay;
+  const delay = latency?.failed ? undefined : proxy.history[proxy.history.length - 1]?.delay;
   const latencyNumber =
     typeof latency?.number === 'number'
       ? latency.number
       : typeof delay === 'number'
-      ? delay
-      : undefined;
+        ? delay
+        : undefined;
   const hasLatencyNumber = typeof latencyNumber === 'number' && latencyNumber > 0;
   const color = useMemo(
     () => getLabelColor({ number: hasLatencyNumber ? latencyNumber : undefined }, httpsLatencyTest),
-    [hasLatencyNumber, latencyNumber, httpsLatencyTest]
+    [hasLatencyNumber, latencyNumber, httpsLatencyTest],
   );
   const isTestingLatency = Boolean(latency?.testing);
 
   const doSelect = React.useCallback(() => {
     isSelectable && onClick && onClick(name);
   }, [name, onClick, isSelectable]);
-  function formatUdpType(udp: boolean, xudp?: boolean) {
-    if (!udp) return '';
-    return xudp ? 'XUDP' : 'UDP';
-  }
-  function formatTfo(t: boolean) {
-    if (!t) return '';
-    return (
-      <svg
-        viewBox="0 0 1024 1024"
-        version="1.1"
-        xmlns="http://www.w3.org/2000/svg"
-        p-id="2962"
-        width="10"
-        height="10"
-      >
-        <path
-          d="M648.093513 719.209284l-1.492609-40.940127 31.046263-26.739021c202.73892-174.805813 284.022131-385.860697 255.70521-561.306199-176.938111-28.786027-389.698834 51.857494-563.907604 254.511123l-26.31256 30.619803-40.38573-0.938211c-60.557271-1.407317-111.903014 12.79379-162.822297 47.0385l189.561318 127.084977-37.95491 68.489421c-9.126237 16.461343-0.554398 53.307457 29.084549 82.818465 29.5963 29.511008 67.380626 38.381369 83.287571 29.852176l68.318836-36.760822 127.639376 191.267156c36.163779-52.11337 50.450177-103.629696 48.189941-165.039887zM994.336107 16.105249l10.490908 2.686696 2.64405 10.405615c47.46496 178.089552-1.023503 451.492838-274.170913 686.898568 4.051367 111.263324-35.396151 200.222809-127.255561 291.741051l-15.779008 15.693715-145.934494-218.731157c-51.217805 27.59194-128.790816 10.405616-183.93205-44.522388-55.226525-55.013296-72.41285-132.287785-43.498885-184.529093L0.002773 430.325513l15.736362-15.65107c89.300652-88.959484 178.64395-128.108481 289.011709-125.549722C539.730114 15.806727 815.56422-31.061189 994.336107 16.105249zM214.93844 805.098259c28.572797 28.572797 22.346486 79.49208-12.537914 114.376479C156.428175 965.489735 34.034254 986.002445 34.034254 986.002445s25.331704-127.084978 66.612998-168.323627c34.8844-34.8844 85.633099-41.281295 114.291188-12.580559zM661.01524 298.549479a63.968948 63.968948 0 1 0 0 127.937897 63.968948 63.968948 0 0 0 0-127.937897z"
-          p-id="2963"
-        />
-      </svg>
-    );
-  }
+
   const handleKeyDown = React.useCallback(
     (e: React.KeyboardEvent) => {
       if (e.keyCode === keyCodes.Enter) {
         doSelect();
       }
     },
-    [doSelect]
+    [doSelect],
   );
+
   const className = useMemo(() => {
     return cx(s0.proxy, {
       [s0.now]: now,
-      [s0.error]: latency && latency.error,
+      [s0.failed]: latency && latency.failed,
       [s0.selectable]: isSelectable,
     });
   }, [isSelectable, now, latency]);
 
   const runLatencyTest = React.useCallback(() => {
     if (isTestingLatency) return;
-    dispatch(healthcheckProxy(apiConfig, name));
-  }, [apiConfig, dispatch, isTestingLatency, name]);
+    onTestLatency(name, proxy.providerName);
+  }, [onTestLatency, isTestingLatency, name, proxy.providerName]);
+
+  const udpLabel = formatUdpType(proxy.udp, proxy.xudp);
 
   return (
+    // role 是条件表达式，oxlint 静态分析不出来
+    // oxlint-disable-next-line jsx-a11y/no-static-element-interactions
     <div
       tabIndex={0}
       className={className}
@@ -232,29 +207,23 @@ export const Proxy = memo(function Proxy({
       onKeyDown={handleKeyDown}
       role={isSelectable ? 'menuitem' : ''}
     >
-      <div className={cx(s0.proxyName, s0.row)}>
-        <ProxyNameTooltip label={name} aria-label={`proxy name: ${name}`}>
-          <span>{name}</span>
-        </ProxyNameTooltip>
-        <span className={s0.udpType} style={{ paddingLeft: 4 }}>
-          {formatUdpType(proxy.udp, proxy.xudp)}
+      <div className={s0.topRow}>
+        <span className={s0.proxyName} title={name}>
+          {name}
         </span>
+        {udpLabel ? <span className={s0.udpBadge}>{udpLabel}</span> : null}
       </div>
 
-      <div className={s0.row}>
-        <div className={s0.row}>
-          <span className={s0.proxyType} style={{ paddingRight: 4 }}>
-            {formatProxyType(proxy.type)}
-          </span>
-
-          {formatTfo(proxy.tfo)}
-        </div>
+      <div className={s0.bottomRow}>
+        <span className={s0.proxyType}>
+          {formatProxyType(proxy.type)}
+          {proxy.tfo ? <TfoIcon /> : null}
+        </span>
 
         <ProxyLatency
           number={hasLatencyNumber ? latencyNumber : undefined}
           color={color}
           isTesting={isTestingLatency}
-          error={latency?.error}
           onClick={runLatencyTest}
         />
       </div>

@@ -1,25 +1,33 @@
+import { useAtom, useSetAtom } from 'jotai';
 import * as React from 'react';
 
 import { fetchLogs, reconnect as reconnectLogs, stop as stopLogs } from '~/api/logs';
-import { appendLog } from '~/store/logs';
-import { DispatchFn, Log } from '~/store/types';
-import { ClashAPIConfig } from '~/types';
+import { appendLogAtom, logFilterText } from '~/store/logs';
+import { ClashAPIConfig, Log } from '~/types';
 
 import { LOGS_SCROLL_BOTTOM_THRESHOLD } from './utils';
 
-const { useCallback, useEffect, useRef, useState } = React;
+const { useCallback, useEffect, useMemo, useRef, useState } = React;
 
 type UpdateAppConfigFn = (name: string, value: unknown) => void;
 
+/** 搜索词是防抖过的，过滤结果缓存住，免得每条新日志进来都重扫一遍 */
+export function useFilteredLogs(logs: Log[]) {
+  const [filterText] = useAtom(logFilterText);
+  return useMemo(() => {
+    if (filterText === '') return logs;
+    const f = filterText.toLowerCase();
+    return logs.filter((log) => log.payload.toLowerCase().indexOf(f) >= 0);
+  }, [logs, filterText]);
+}
+
 export function useLogsPage({
-  dispatch,
   logLevel,
   apiConfig,
   logs,
   logStreamingPaused,
   updateAppConfig,
 }: {
-  dispatch: DispatchFn;
   logLevel: string;
   apiConfig: ClashAPIConfig;
   logs: Log[];
@@ -31,14 +39,15 @@ export function useLogsPage({
     updateAppConfig('logStreamingPaused', !logStreamingPaused);
   }, [apiConfig, logLevel, logStreamingPaused, updateAppConfig]);
 
-  const appendLogInternal = useCallback((log) => dispatch(appendLog(log)), [dispatch]);
+  // useSetAtom 返回的 setter 引用稳定，可以直接当 effect 依赖
+  const appendLog = useSetAtom(appendLogAtom);
 
   useEffect(() => {
-    fetchLogs({ ...apiConfig, logLevel }, appendLogInternal);
+    const unsubscribe = fetchLogs({ ...apiConfig, logLevel }, appendLog);
     return () => {
-      stopLogs();
+      unsubscribe?.();
     };
-  }, [apiConfig, logLevel, appendLogInternal]);
+  }, [apiConfig, logLevel, appendLog]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -49,6 +58,7 @@ export function useLogsPage({
     }
   }, []);
 
+  // 贴着底看的时候才自动跟随，用户往回翻了就别抢滚动位置
   useEffect(() => {
     if (isAtBottom) {
       scrollToBottom();

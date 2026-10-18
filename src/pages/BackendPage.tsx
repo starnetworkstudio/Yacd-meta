@@ -1,14 +1,15 @@
 import * as React from 'react';
 
-import APIConfig from '~/components/APIConfig';
-import { connect } from '~/components/StateProvider';
+import APIConfig from '~/components/backend/APIConfig';
 import {
   addClashAPIConfig,
   getClashAPIConfigs,
   getSelectedClashAPIConfigIndex,
   removeClashAPIConfig,
   selectClashAPIConfig,
+  updateClashAPIConfig,
 } from '~/store/app';
+import { connect } from '~/store/StateProvider';
 import type { ClashAPIConfigWithAddedAt, DispatchFn, State } from '~/store/types';
 import type { ClashAPIConfig } from '~/types';
 
@@ -25,21 +26,28 @@ function BackendPage({ dispatch, apiConfigs, selectedClashAPIConfigIndex }: Prop
     (config: ClashAPIConfig) => {
       dispatch(addClashAPIConfig(config));
     },
-    [dispatch]
+    [dispatch],
   );
 
   const handleRemoveConfig = useCallback(
     (config: ClashAPIConfig) => {
       dispatch(removeClashAPIConfig(config));
     },
-    [dispatch]
+    [dispatch],
   );
 
   const handleSelectConfig = useCallback(
     (config: ClashAPIConfig) => {
       dispatch(selectClashAPIConfig(config));
     },
-    [dispatch]
+    [dispatch],
+  );
+
+  const handleUpdateConfig = useCallback(
+    (prev: ClashAPIConfig, next: ClashAPIConfig) => {
+      dispatch(updateClashAPIConfig(prev, next));
+    },
+    [dispatch],
   );
 
   return (
@@ -49,6 +57,7 @@ function BackendPage({ dispatch, apiConfigs, selectedClashAPIConfigIndex }: Prop
       onAddConfig={handleAddConfig}
       onRemoveConfig={handleRemoveConfig}
       onSelectConfig={handleSelectConfig}
+      onUpdateConfig={handleUpdateConfig}
     />
   );
 }

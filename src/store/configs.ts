@@ -17,15 +17,22 @@ export const getConfigs = (s: State) => s.configs.configs;
 export const getHaveFetched = (s: State) => s.configs.haveFetchedConfig;
 export const getLogLevel = (s: State) => s.configs.configs['log-level'];
 
+const STARTUP_TIMEOUT_MS = 2000;
+
 export function fetchConfigs(apiConfig: ClashAPIConfig) {
   return async (dispatch: DispatchFn, getState: GetStateFn) => {
     let res: Response;
+    const haveFetched = getHaveFetched(getState());
+    const controller = new AbortController();
+    const timeoutId = haveFetched ? null : setTimeout(() => controller.abort(), STARTUP_TIMEOUT_MS);
     try {
-      res = await configsAPI.fetchConfigs(apiConfig);
+      res = await configsAPI.fetchConfigs(apiConfig, haveFetched ? undefined : controller.signal);
     } catch (err) {
-      // TypeError and AbortError
+      // TypeError and AbortError (includes timeout)
       dispatch(openModal('apiConfig'));
       return;
+    } finally {
+      if (timeoutId !== null) clearTimeout(timeoutId);
     }
 
     if (!res.ok) {
@@ -65,7 +72,7 @@ type generalConfig = Omit<ClashGeneralConfig, 'tun'>;
 
 export function updateConfigs(
   apiConfig: ClashAPIConfig,
-  partialConfg: TunPartial<ClashGeneralConfig>
+  partialConfg: TunPartial<ClashGeneralConfig>,
 ) {
   return async (dispatch: DispatchFn) => {
     configsAPI
@@ -73,15 +80,13 @@ export function updateConfigs(
       .then(
         (res) => {
           if (res.ok === false) {
-            // eslint-disable-next-line no-console
             console.log('Error update configs', res.statusText);
           }
         },
         (err) => {
-          // eslint-disable-next-line no-console
           console.log('Error update configs', err);
           throw err;
-        }
+        },
       )
       .then(() => {
         dispatch(fetchConfigs(apiConfig));
@@ -90,144 +95,6 @@ export function updateConfigs(
     dispatch('storeConfigsOptimisticUpdateConfigs', (s) => {
       s.configs.configs = { ...s.configs.configs, ...partialConfg } as generalConfig;
     });
-  };
-}
-
-export function reloadConfigFile(apiConfig: ClashAPIConfig) {
-  return async (dispatch: DispatchFn) => {
-    configsAPI
-      .reloadConfigFile(apiConfig)
-      .then(
-        (res) => {
-          if (res.ok === false) {
-            // eslint-disable-next-line no-console
-            console.log('Error reload config file', res.statusText);
-          }
-        },
-        (err) => {
-          // eslint-disable-next-line no-console
-          console.log('Error reload config file', err);
-          throw err;
-        }
-      )
-      .then(() => {
-        dispatch(fetchConfigs(apiConfig));
-      });
-  };
-}
-
-export function restartCore(apiConfig: ClashAPIConfig) {
-  return async (dispatch: DispatchFn) => {
-    configsAPI
-      .restartCore(apiConfig)
-      .then(
-        (res) => {
-          if (res.ok === false) {
-            // eslint-disable-next-line no-console
-            console.log('Error restart core', res.statusText);
-          }
-        },
-        (err) => {
-          // eslint-disable-next-line no-console
-          console.log('Error restart core', err);
-          throw err;
-        }
-      )
-      .then(() => {
-        dispatch(fetchConfigs(apiConfig));
-      });
-  };
-}
-
-export function upgradeCore(apiConfig: ClashAPIConfig) {
-  return async (dispatch: DispatchFn) => {
-    configsAPI
-      .upgradeCore(apiConfig)
-      .then(
-        (res) => {
-          if (res.ok === false) {
-            // eslint-disable-next-line no-console
-            console.log('Error upgrade core', res.statusText);
-          }
-        },
-        (err) => {
-          // eslint-disable-next-line no-console
-          console.log('Error upgrade core', err);
-          throw err;
-        }
-      )
-      .then(() => {
-        dispatch(fetchConfigs(apiConfig));
-      });
-  };
-}
-
-export function upgradeGeo(apiConfig: ClashAPIConfig) {
-  return async (dispatch: DispatchFn) => {
-    configsAPI
-      .upgradeGeo(apiConfig)
-      .then(
-        (res) => {
-          if (res.ok === false) {
-            // eslint-disable-next-line no-console
-            console.log('Error upgrade geo', res.statusText);
-          }
-        },
-        (err) => {
-          // eslint-disable-next-line no-console
-          console.log('Error upgrade geo', err);
-          throw err;
-        }
-      )
-      .then(() => {
-        dispatch(fetchConfigs(apiConfig));
-      });
-  };
-}
-
-export function upgradeUI(apiConfig: ClashAPIConfig) {
-  return async (dispatch: DispatchFn) => {
-    configsAPI
-      .upgradeUI(apiConfig)
-      .then(
-        (res) => {
-          if (res.ok === false) {
-            // eslint-disable-next-line no-console
-            console.log('Error upgrade ui', res.statusText);
-          }
-        },
-        (err) => {
-          // eslint-disable-next-line no-console
-          console.log('Error upgrade ui', err);
-          throw err;
-        }
-      )
-      .then(() => {
-        dispatch(fetchConfigs(apiConfig));
-      });
-  };
-}
-
-export function flushFakeIPPool(apiConfig: ClashAPIConfig) {
-  return async (dispatch: DispatchFn) => {
-    configsAPI
-      .flushFakeIPPool(apiConfig)
-      .then(
-        (res) => {
-          if (res.ok === false) {
-            // eslint-disable-next-line no-console
-            console.log('Error flush FakeIP pool', res.statusText);
-          }
-        },
-        (err) => {
-          // eslint-disable-next-line no-console
-          console.log('Error flush FakeIP pool', err);
-          throw err;
-        }
-      )
-      .then(() => {
-        dispatch(fetchConfigs(apiConfig));
-      });
   };
 }
 

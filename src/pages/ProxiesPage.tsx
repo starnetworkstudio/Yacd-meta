@@ -1,23 +1,21 @@
 import { createSelector } from 'reselect';
 
 import Proxies from '~/components/proxies/Proxies';
-import { connect } from '~/components/StateProvider';
 import {
   getAutoCloseOldConns,
   getClashAPIConfig,
   getCollapsibleIsOpen,
   getHideUnavailableProxies,
+  getLatencyTestExpectedStatus,
+  getLatencyTestTimeout,
   getLatencyTestUrl,
+  getPreferBackendLatencyTestUrl,
+  getProviderHealthcheckTimeout,
   getProxiesLayout,
+  getProxyGroupByProvider,
   getProxySortBy,
 } from '~/store/app';
-import {
-  getDelay,
-  getProxies,
-  getProxyGroupNames,
-  getProxyProviders,
-  getShowModalClosePrevConns,
-} from '~/store/proxies';
+import { connect } from '~/store/StateProvider';
 import { State } from '~/store/types';
 
 const getAppConfig = createSelector(
@@ -25,23 +23,42 @@ const getAppConfig = createSelector(
   getHideUnavailableProxies,
   getAutoCloseOldConns,
   getProxiesLayout,
-  (proxySortBy, hideUnavailableProxies, autoCloseOldConns, proxiesLayout) => ({
+  getProxyGroupByProvider,
+  getLatencyTestUrl,
+  getLatencyTestTimeout,
+  getLatencyTestExpectedStatus,
+  getPreferBackendLatencyTestUrl,
+  getProviderHealthcheckTimeout,
+  (
     proxySortBy,
     hideUnavailableProxies,
     autoCloseOldConns,
     proxiesLayout,
-  })
+    proxyGroupByProvider,
+    latencyTestUrl,
+    latencyTestTimeout,
+    latencyTestExpectedStatus,
+    preferBackendLatencyTestUrl,
+    providerHealthcheckTimeout,
+  ) => ({
+    proxySortBy,
+    hideUnavailableProxies,
+    autoCloseOldConns,
+    proxiesLayout,
+    proxyGroupByProvider,
+    latencyTestUrl,
+    latencyTestTimeout,
+    latencyTestExpectedStatus,
+    preferBackendLatencyTestUrl,
+    providerHealthcheckTimeout,
+  }),
 );
 
+// 代理数据本身走 TanStack Query（modules/proxies/hooks），这里只映射旧 store 里
+// 那部分持久化的 UI 偏好
 const mapState = (state: State) => ({
   apiConfig: getClashAPIConfig(state),
-  groupNames: getProxyGroupNames(state),
-  proxies: getProxies(state),
-  proxyProviders: getProxyProviders(state),
-  delay: getDelay(state),
-  latencyTestUrl: getLatencyTestUrl(state),
   collapsibleIsOpen: getCollapsibleIsOpen(state),
-  showModalClosePrevConns: getShowModalClosePrevConns(state),
   appConfig: getAppConfig(state),
 });
 

@@ -1,14 +1,11 @@
 import { Suspense } from 'react';
 import { HashRouter, Navigate, Route, RouteObject, Routes, useRoutes } from 'react-router-dom';
 
-import Loading from '~/components/Loading';
+import SideBar from '~/app/SideBar';
 import { Head } from '~/components/shared/Head';
-import SideBar from '~/components/SideBar';
+import Loading from '~/components/shared/Loading';
 
 import styles from '../App.module.scss';
-
-import APIDiscovery from './APIDiscovery';
-import AboutPage from '../pages/AboutPage';
 import BackendPage from '../pages/BackendPage';
 import ConfigPage from '../pages/ConfigPage';
 import ConnectionsPage from '../pages/ConnectionsPage';
@@ -18,6 +15,8 @@ import ProxiesPage from '../pages/ProxiesPage';
 import RulesPage from '../pages/RulesPage';
 import StyleGuidePage from '../pages/StyleGuidePage';
 
+import APIDiscoveryContainer from './APIDiscoveryContainer';
+
 const routes = [
   { path: '/', element: <Navigate to="/proxies" replace /> },
   { path: '/home', element: <HomePage /> },
@@ -26,14 +25,13 @@ const routes = [
   { path: '/logs', element: <LogsPage /> },
   { path: '/proxies', element: <ProxiesPage /> },
   { path: '/rules', element: <RulesPage /> },
-  { path: '/about', element: <AboutPage /> },
   import.meta.env.DEV ? { path: '/style', element: <StyleGuidePage /> } : false,
 ].filter(Boolean) as RouteObject[];
 
 function DashboardRouter() {
   return (
     <>
-      <APIDiscovery />
+      <APIDiscoveryContainer />
       <SideBar />
       <div className={styles.content}>{useRoutes(routes)}</div>
     </>

@@ -1,6 +1,8 @@
 export type SelectOption = [string, string];
+/** 只有这几个端口字段会被渲染成输入框，故意收窄成字面量联合，好让 configState[key] 能推出 number */
+export type PortFieldKey = 'port' | 'socks-port' | 'mixed-port' | 'redir-port' | 'mitm-port';
 export type PortField = {
-  key: string;
+  key: PortFieldKey;
   label: string;
 };
 
@@ -38,9 +40,10 @@ export const MODE_OPTIONS: SelectOption[] = [
 ];
 
 export const TUN_STACK_OPTIONS: SelectOption[] = [
-  ['gvisor', 'gVisor'],
-  ['mixed', 'Mixed'],
   ['system', 'System'],
+  ['gvisor', 'gVisor'],
+  ['mips', 'mips'],
+  ['mixed', 'Mixed'],
 ];
 
 export function getBackendContent(version: { meta?: boolean; premium?: boolean } | undefined) {
@@ -51,4 +54,14 @@ export function getBackendContent(version: { meta?: boolean; premium?: boolean }
     return 'sing-box ';
   }
   return 'Clash Premium';
+}
+
+export function getCoreVersionMeta(version: { meta?: boolean; premium?: boolean }) {
+  if (version.meta && version.premium) {
+    return { name: 'sing-box', link: 'https://github.com/SagerNet/sing-box' };
+  }
+  if (version.meta) {
+    return { name: 'Clash.Meta', link: 'https://github.com/MetaCubeX/mihomo' };
+  }
+  return { name: 'Clash', link: 'https://github.com/Dreamacro/clash' };
 }
